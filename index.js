@@ -2,7 +2,7 @@
 
 import React, {Component, PropTypes} from 'react';
 import {
-	StyleSheet,
+	StyleSheet, Modal,
 	View,
 	Text,
 	Animated,
@@ -20,6 +20,8 @@ let {width, height} = Dimensions.get('window');
 const longSide = width > height ? width : height;
 const shortSide = width > height ? height : width;
 
+const SUPPORTED_ORIENTATIONS = ['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right']
+
 export default class PickerAny extends Component {
 
 	static propTypes = {
@@ -27,7 +29,9 @@ export default class PickerAny extends Component {
 		pickerElevation: PropTypes.number,
 		pickerBtnText: PropTypes.string,
 		pickerCancelBtnText: PropTypes.string,
-		pickerBtnStyle: Text.propTypes.style,
+    pickerBtnStyle: Text.propTypes.style,
+    pickerLeftBtnStyle: Text.propTypes.style,
+    pickerRightBtnStyle: Text.propTypes.style,
 		pickerTitle: PropTypes.string,
 		pickerTitleStyle: Text.propTypes.style,
 		pickerToolBarStyle: View.propTypes.style,
@@ -54,11 +58,14 @@ export default class PickerAny extends Component {
 	};
 
 	constructor(props, context){
-		super(props, context);
+    super(props, context);
+    this.state={
+      modalVisible: false
+    }
 	}
 
 	componentWillMount(){
-		this.state = this._getStateFromProps(this.props);
+		this.setState(this._getStateFromProps(this.props))
 	}
 
 	componentWillReceiveProps(newProps){
@@ -68,7 +75,29 @@ export default class PickerAny extends Component {
 
 	shouldComponentUpdate(nextProps, nextState, context){
 		return true;
-	}
+  }
+
+  setModalVisible = (visible) => {
+    // slide animation
+    if (visible) {
+      this.setState({modalVisible: visible});
+      this._slideUp()
+    } else {
+      Animated.timing(
+        this.state.slideAnim,
+        {
+          toValue: -(this.state.style.height || 260),
+          duration: this.state.showDuration,
+        }
+      ).start((evt) => {
+        if(evt.finished) {
+          this._isMoving = false;
+          this._isPickerShow = false;
+          this.setState({modalVisible: visible})
+        }
+      });
+    }
+  }
 
 	_getStateFromProps(props){
 		//the pickedValue must looks like [wheelone's, wheeltwo's, ...]
@@ -143,7 +172,7 @@ export default class PickerAny extends Component {
 		Animated.timing(
 			this.state.slideAnim,
 			{
-				toValue: -height,
+				toValue: -300,
 				duration: this.state.showDuration,
 			}
 		).start((evt) => {
@@ -159,24 +188,26 @@ export default class PickerAny extends Component {
 			return;
 		}
 		if(this._isPickerShow) {
-			this._slideDown();
+			this.hide();
 		}
 		else{
-			this._slideUp();
+			this.show();
 		}
 	}
-	
+
 	toggle(){
 		this._toggle();
 	}
 	show(){
+    console.tron.log('>> st')
+    console.tron.log(this._isPickerShow)
 		if(!this._isPickerShow){
-			this._slideUp();
+      this.setModalVisible(true)
 		}
 	}
 	hide(){
 		if(this._isPickerShow){
-			this._slideDown();
+      this.setModalVisible(false)
 		}
 	}
 	isPickerShow(){
@@ -401,63 +432,60 @@ export default class PickerAny extends Component {
 	}
 
 	render(){
-
-		let mask = this.state.showMask ? (
-			<View style={styles.mask} >
-				<Text style={{width: width, height: height}} onPress={this._pickerCancel.bind(this)}></Text>
-			</View>
-		) : null;
-
 		return (
-			<Animated.View style={[styles.picker, {
-				elevation: this.state.pickerElevation,
-				width: longSide,
-				height: this.state.showMask ? height : this.state.style.height,
-				bottom: this.state.slideAnim
-			}]}>
-				{mask}
-				<View style={[styles.pickerBox, this.state.style]}>
-					<View style={[styles.pickerToolbar, this.state.pickerToolBarStyle, {width: this.state.style.width || width}]}>
-						<View style={styles.pickerCancelBtn}>
-							<Text style={[styles.pickerFinishBtnText, this.state.pickerBtnStyle]}
-								onPress={this._pickerCancel.bind(this)}>{this.state.pickerCancelBtnText}</Text>
-						</View>
-						<Text style={[styles.pickerTitle, this.state.pickerTitleStyle]} numberOfLines={1}>
-							{this.state.pickerTitle}
-						</Text>
-						<View style={styles.pickerFinishBtn}>
-							<Text style={[styles.pickerFinishBtnText, this.state.pickerBtnStyle]}
-								onPress={this._pickerFinish.bind(this)}>{this.state.pickerBtnText}</Text>
-						</View>
-					</View>
-					<View style={[styles.pickerWrap, {width: this.state.style.width || width}]}>
-						{this._renderWheel(this.state.pickerData)}
-					</View>
-				</View>
-			</Animated.View>
+      <Modal
+        transparent={true}
+        animationType="none"
+        visible={this.state.modalVisible}
+        supportedOrientations={SUPPORTED_ORIENTATIONS}
+        onRequestClose={() => {this.hide()}}
+      >
+        <View style={styles.mask} >
+          <Text style={{flex: 1}} onPress={() => {this.hide()}}></Text>
+        </View>
+        <Animated.View style={[styles.picker, {
+          elevation: this.state.pickerElevation,
+          width: longSide,
+          height: this.state.style.height || 260,
+          bottom: this.state.slideAnim
+        }]}>
+          <View style={[styles.pickerBox, this.state.style]}>
+            <View style={[styles.pickerToolbar, this.state.pickerToolBarStyle, {width: this.state.style.width || width}]}>
+              <View style={styles.pickerCancelBtn}>
+                <Text style={[styles.pickerFinishBtnText, this.state.pickerBtnStyle, this.state.pickerLeftBtnStyle]}
+                  onPress={this._pickerCancel.bind(this)}>{this.state.pickerCancelBtnText}</Text>
+              </View>
+              <Text style={[styles.pickerTitle, this.state.pickerTitleStyle]} numberOfLines={1}>
+                {this.state.pickerTitle}
+              </Text>
+              <View style={styles.pickerFinishBtn}>
+                <Text style={[styles.pickerFinishBtnText, this.state.pickerBtnStyle, this.state.pickerRightBtnStyle]}
+                  onPress={this._pickerFinish.bind(this)}>{this.state.pickerBtnText}</Text>
+              </View>
+            </View>
+            <View style={[styles.pickerWrap, {width: this.state.style.width || width}]}>
+              {this._renderWheel(this.state.pickerData)}
+            </View>
+          </View>
+        </Animated.View>
+      </Modal>
 		);
 	}
 };
 
 let styles = StyleSheet.create({
 	picker: {
-		position: 'absolute',
-		bottom: 0,
-		left: 0,
+    position:'absolute',
+    bottom: 0,
 		backgroundColor: 'transparent',
 	},
 	pickerBox: {
-		position: 'absolute',
-		bottom: 0,
-		left: 0,
-		backgroundColor: '#bdc0c7'
+		backgroundColor: '#fff'
 	},
 	mask: {
-		position: 'absolute',
-		top: 0,
-		backgroundColor: 'transparent',
-		height: height,
-		width: width
+		flex: 1,
+    backgroundColor: '#00000077',
+    opacity: 0.9
 	},
 	pickerWrap: {
 		flexDirection: 'row'
@@ -466,9 +494,10 @@ let styles = StyleSheet.create({
 		flex: 1
 	},
 	pickerToolbar: {
-		height: 30,
-		backgroundColor: '#e6e6e6',
-		flexDirection: 'row',
+		minHeight: 45,
+		backgroundColor: '#fff',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
 		borderTopWidth: 1,
 		borderBottomWidth: 1,
 		borderColor: '#c3c3c3',
@@ -493,12 +522,12 @@ let styles = StyleSheet.create({
 		marginLeft: 20
 	},
 	pickerTitle: {
-		flex: 4,
+		flex: 1,
 		color: 'black',
 		textAlign: 'center'
 	},
 	pickerFinishBtn: {
-		flex: 1,
+		minWidth: 30,
 		flexDirection: 'row',
 		justifyContent: 'flex-end',
 		alignItems: 'center',
