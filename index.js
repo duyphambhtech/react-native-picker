@@ -199,8 +199,6 @@ export default class PickerAny extends Component {
 		this._toggle();
 	}
 	show(){
-    console.tron.log('>> st')
-    console.tron.log(this._isPickerShow)
 		if(!this._isPickerShow){
       this.setModalVisible(true)
 		}
